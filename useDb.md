@@ -61,7 +61,8 @@ WriteResult({ "nInserted" : 1 })
 ```JavaScript
 >db.media.find() //返回所有数据
 >db.media.find({ Type : "CD"}) //条件查询：返回Type = CD 的数据
->db.media.find({ Type : "CD"},{ Title : 1}) //返回内容过滤 只返回Title信息，如果{ Title : 0}意思是返回除Title以外的信息。（_id默认会返回）
+>db.media.find({ Type : "CD"},{ Title : 1}) //返回内容过滤 只返回Title信息，如果{ Title : 0}
+//意思是返回除Title以外的信息。（_id默认会返回）
 >db.media.find({ "obj.title" : "something" }) //查询文档中内嵌信息，就是对象里面的属性值
 ```
 使用函数sort、limit和skip
@@ -83,6 +84,7 @@ WriteResult({ "nInserted" : 1 })
 >db.media.findOne() //返回一个结果
 >db.media.count() //统计返回文档的数目
 >db.media.find({ Type : "Book" }).count()
->db.media.find({ Type : "Book" }).skip(2).count(true) //默认情况下count会忽略skip()或limit()参数，为了保证结果准备可以添加count(true)确保查询不会忽略它们。
+>db.media.find({ Type : "Book" }).skip(2).count(true) //默认情况下count会忽略skip()或limit()参数
+//为了保证结果准备可以添加count(true)确保查询不会忽略它们。
 >db.media.distinct( "Title" ) //返回唯一值
 ```
