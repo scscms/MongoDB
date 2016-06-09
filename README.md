@@ -74,3 +74,17 @@ MongoDB 是一个介于关系数据库和非关系数据库之间的产品，是
 点击connect,连接成功后。我们在test数据库上右键“Open Shell”并输入db.foo.find()然后点击绿色运行的三角形图标结果就出来了。<br/>
 ![image](https://github.com/scscms/MongoDB/raw/master/images/r7.jpg)<br/>
 <!--简单的给mongodb添加用户和认证http://www.cnblogs.com/guizi/archive/2012/11/20/2779500.html-->
+
+### window上安装 MongoDB PHP扩展
+Github上已经提供了用于window平台的预编译php mongodb驱动二进制包\([下载地址 https://s3.amazonaws.com/drivers.mongodb.org/php/index.html](https://s3.amazonaws.com/drivers.mongodb.org/php/index.html)\)，你可以下载与你php对应的版本，但是你需要注意以下几点问题：
+
+    VC6 是运行于 Apache 服务器
+    'Thread safe'（线程安全）是运行在Apache上以模块的PHP上，如果你以CGI的模式运行PHP，请选择非线程安全模式（' non-thread safe'）。
+    VC9是运行于 IIS 服务器上。
+    下载完你需要的二进制包后，解压压缩包，将'php_mongo.dll'文件添加到你的PHP扩展目录中（ext）。ext目录通常在PHP安装目录下的ext目录。
+
+打开php配置文件 php.ini 添加以下配置：
+```JavaScript
+extension=php_mongo.dll
+```
+重启IIS服务器。
