@@ -13,15 +13,15 @@ db.open(function(err, db){
             if(err){
                 console.log(err);
             }else{
-                let step = 18;//执行哪步
+                let step = "";//执行哪步
                 switch (step){
                     case 0:
                         //插入一些数据
                         let dvd = {
-                            'Type' : 'DVD',
-                            'Title' : 'Matrix, The',
+                            Type : 'DVD',
+                            Title : 'Matrix, The',
                             Released : 1999,
-                            'Cast' : [
+                            Cast : [
                                 'Keanu Reeves',
                                 'Carrie-Anne Moss',
                                 'Laurence Fishburne',
@@ -165,9 +165,11 @@ db.open(function(err, db){
                     case 18:
                         collection.find({ Title:/Matrix*/i}).toArray(function(err,docs){
                             console.log(docs);//正则表达式
+                            //还支持^$%*等
                         });
                         break;
                     default :
+                        console.log("edit step to run")
                 }
             }
         });
