@@ -9,20 +9,28 @@ MongoDB非常强大但很容易上手。先介绍一些MongoDB的基本概念。
 * MongoDB自带了一个简单但功能强大的JavaScript shell ，可用于管理MongoDB的实例或数据操作。
 
 MongoDB文档主键_id规则：
-ObjectId 是 _id 的默认类型。
 
 > ObjectId 采用12字节的存储空间，每个字节两位16进制数字，是一个24位的字符串。
 
 12位生成规则：
-
 [0,1,2,3] [4,5,6] [7,8] [9,10,11]
-
 时间戳    |机器码 |PID  |计数器
 
 * 前四位是时间戳，可以提供秒级别的唯一性。
 * 接下来三位是所在主机的唯一标识符，通常是机器主机名的散列值。
 * 接下来两位是产生ObjectId的PID，确保同一台机器上并发产生的ObjectId是唯一的。前九位保证了同一秒钟不同机器的不同进程产生的ObjectId时唯一的。
 * 最后三位是自增计数器，确保相同进程同一秒钟产生的ObjectId是唯一的。 
+例如：_id: 577bd74ef6aedf5019b320a1
+####MongoDB 概念解析
+|SQL术语/概念|MongoDB术语/概念|解释/说明|
+|:----------:|:--------------:|:-------:|
+|database    |database        |数据库   |
+|table       |collection      |数据库表/集合|
+|row         |document 	      |数据记录行/文档|
+|column      |field 	      |数据字段/域|
+|index 	index|索引            |都支持索引设置 |
+|table joins |表连接,MongoDB不支持| |
+|primary key |primary key     |主键,MongoDB自动将_id字段设置为主键|
 
 ### 1、浏览数据库
 数据库名规则：
@@ -161,24 +169,24 @@ db.media.group({
 |代码  | 数据类型|
 |:----:|-------|
 | -1   | MiniKey |
-|  1   | Double |
-|  2   | Character字符串(UTF-8) |
-|  3   | 嵌入式对象 |
-|  4   | 嵌入式数组 |
+|  1   | Double 双精度浮点值。用于存储浮点值|
+|  2   | Character字符串(UTF-8),字符串 |
+|  3   | 嵌入式对象,内嵌文档|
+|  4   | 嵌入式数组,将数组或列表或多个值存储为一个键|
 |  5   | 二进制数据 |
-|  7   | 对象ID |
-|  8   | Boolean型 |
-|  9   | Date型 |
-| 10   | Null |
-| 11   | 正则表达式 |
-| 13   | JavaScript代码 |
-| 14   | Symbol|
+|  7   | 对象ID,用于创建文档的 ID|
+|  8   | Boolean布尔值 |
+|  9   | Date型,用UNIX时间格式来存储当前日期或时间|
+| 10   | Null|
+| 11   | Regular expression正则表达式 |
+| 13   | Code存储 JavaScript 代码|
+| 14   | Symbol符号|
 | 15   | 带作用域的JavaScript代码|
 | 16   | 32位整型|
 | 17   | 时间截|
 | 18   | 64位整型|
-| 127   | MaxKey|
-| 255   | MinKey|
+| 127  | MaxKey将一个值与 BSON元素的最高值相对比|
+| 255  | MinKey将一个值与 BSON元素的最低值相对比|
 
 例子参考 node_condition_find.js
 
@@ -186,6 +194,7 @@ db.media.group({
 
 二、更新
 mongodb更新有两个命令：
+
 1).update()命令
 
 db.collection.update( criteria, objNew, upsert, multi )
@@ -384,3 +393,64 @@ operations:需要执行的操作
 > db.media.find({ISBN : "978-1-432-512"}).hint({ISBN : 1}).explain() //确认是否使用了强制指定的索引
 > db.media.find().min({ Released : 1995 }).max({ Released : 2005 }).hit({ Released : 1 }) //使用查询匹配   平时还是建议使用$gt，$lt因为它们不要求有索引
 ```
+
+### 6、启用文本搜索
+启动文本搜索有三种方式：
+* 在启动命令添加选项
+--setParameter textSearchEnabled=true
+* 在MongoDB实例的配置文件中添加选项
+setParameter=textSearchEnabled=true
+* 使用Mongo shell命令
+db.adminCommand({ setParameter : 1, textSearchEnabled : true })
+假如我们在test表的media集合添加了一些数据，需要全文搜索的是Title
+```JavaScript
+>use test;
+> //添加数据省略，或者使用mongimport导入数据
+>db.adminCommand({ setParameter : 1, textSearchEnabled : true }); //文本索引已经启动
+>db.media.ensureIndex({ Title : "text" }); //表示我们要对Title字段进行文本搜索
+>db.media.getIndexes(); //可以先检查一下索引
+>db.media.runCommand( "text", { search : "Toy" }); //开始搜索Title含有Toy关键字的集合
+//应该可以看到结果
+>db.media.runCommand( "text", { search : "Toy" ,filter : { Type: "DVD" } }); //条件过滤
+>db.media.runCommand( "text", { search : "Toy DVD" }); //表示搜索Title = 'toy' or Title = 'DVD'
+>db.media.runCommand( "text", { search : "Toy -DVD" }); //表示搜索Title = 'toy' and Title != 'DVD'
+>db.media.runCommand( "text", { search : "\"Toy DVD\"" }); //表示搜索Title = 'toy DVD'
+>db.media.runCommand( "text", { search : "Toy" , limit : 1 }); //限制返回1条数据
+>db.media.runCommand( "text", { search : "Toy" , project:{ _id : 0,body : 1} }); //project设置返回的字段，0代表不显示，1代表显示
+>db.media.runCommand( "text", { search : "Toy" , lagnuage:"english" }); //指定文本搜索所使用的语言
+```
+当前官网资料是V3版本，而我本地是V2.6.7。新版本开启文本搜索更方便了：
+```JavaScript
+>db.articles.insert(
+    [
+      { _id: 1, subject: "coffee", author: "xyz", views: 50 },
+      { _id: 2, subject: "Coffee Shopping", author: "efg", views: 5 },
+      { _id: 3, subject: "Baking a cake", author: "abc", views: 90  },
+      { _id: 4, subject: "baking", author: "xyz", views: 100 },
+      { _id: 5, subject: "Café Con Leche", author: "abc", views: 200 },
+      { _id: 6, subject: "Сырники", author: "jkl", views: 80 },
+      { _id: 7, subject: "coffee and cream", author: "efg", views: 10 },
+      { _id: 8, subject: "Cafe con Leche", author: "xyz", views: 10 }
+    ]
+ ); //先插入一些数据
+ >db.articles.createIndex( { subject: "text" } ); //开启subject字段为文本搜索
+ >db.articles.find( { $text: { $search: "coffee" } } ); //搜索subject = "coffee"
+ >db.articles.find( { $text: { $search: "bake coffee cake" } } ); //搜索subject = "bake" or subject = "coffee"  or subject = "cake"
+ >db.articles.find( { $text: { $search: "\"coffee shop\"" } } ); //搜索subject = "coffee shop"
+ >db.articles.find( { $text: { $search: "coffee -shop" } } ); //搜索subject = "coffee" and subject !="shop"
+ >db.articles.find( { $text: { $search: "leche", $language: "es" } }  ); //指定搜索文本的语言，详细见网页说明
+ >db.articles.find( { $text: { $search: "сы́рники CAFÉS" } } );//在版本3以前是查询不到结果的
+ >db.articles.find( { $text: { $search: "Coffee", $caseSensitive: true } } );//在版本3.2新增是否区分大小写
+ >db.articles.find( { $text: { $search: "CAFÉ", $diacriticSensitive: true } } );//在版本3.2新增是否区别敏感字符，类似ES6的
+>db.articles.find({},{"subject":1,_id:0}).limit(1).skip(1); //查询所有数据，返回subject字段，隐藏_id(默认显示)只显示1条数据，跳过第1条（即只显示第2条数据）
+>db.articles.find({"subject" : {$type : 2}}); //查询suject字段是字符串类型的数据。更多$type见上表
+db.articles.find(
+   { $text: { $search: "coffee" } },
+   { score: { $meta: "textScore" } }
+).sort( { score: { $meta: "textScore" } } ).limit(2); //新增一个搜索匹配度（精确）值，并按匹配度值排序后只返回2条记录
+//搜索匹配度的意思是假如搜索的内容等于本字段那么匹配值为1，否则按占字符的百分比来计算，即是一个(0,1]的值。
+```
+[更详细的文本搜索介绍](https://docs.mongodb.com/manual/reference/operator/query/text/)
+[文本搜索支持的语言](https://docs.mongodb.com/manual/reference/text-search-languages/#text-search-languages)
+
+http://www.runoob.com/mongodb/mongodb-limit-skip.html
