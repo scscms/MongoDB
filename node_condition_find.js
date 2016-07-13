@@ -13,7 +13,7 @@ db.open(function(err, db){
             if(err){
                 console.log(err);
             }else{
-                let step = "";//执行哪步
+                let step = 2;//执行哪步
                 switch (step){
                     case 0:
                         //插入一些数据

@@ -88,3 +88,12 @@ Github上已经提供了用于window平台的预编译php mongodb驱动二进制
 extension=php_mongo.dll
 ```
 重启IIS服务器。
+
+## MongoDB 管理工具: Rockmongo
+
+RockMongo是PHP5写的一个MongoDB管理工具。
+通过 Rockmongo 你可以管理 MongoDB服务，数据库，集合，文档，索引等等。
+它提供了非常人性化的操作。类似 phpMyAdmin（PHP开发的MySql管理工具）。
+Rockmongo 下载地址：[http://rockmongo.com/downloads][Rockmongo]
+
+[Rockmongo]:http://rockmongo.com/downloads  "Rockmongo 下载地址"

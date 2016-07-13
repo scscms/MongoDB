@@ -21,7 +21,12 @@ MongoDB文档主键_id规则：
 * 接下来两位是产生ObjectId的PID，确保同一台机器上并发产生的ObjectId是唯一的。前九位保证了同一秒钟不同机器的不同进程产生的ObjectId时唯一的。
 * 最后三位是自增计数器，确保相同进程同一秒钟产生的ObjectId是唯一的。 
 例如：_id: 577bd74ef6aedf5019b320a1
-####MongoDB 概念解析
+```Javascript
+> new ObjectId().str; //生成一个ObjectId并转成数字
+> ObjectId("5349b4ddd2781d08c09890f4").getTimestamp(); //从某个ObjectId提取时间截
+```
+#### MongoDB 概念解析
+
 |SQL术语/概念|MongoDB术语/概念|解释/说明|
 |:----------:|:--------------:|:-------:|
 |database    |database        |数据库   |
@@ -393,6 +398,12 @@ operations:需要执行的操作
 > db.media.find({ISBN : "978-1-432-512"}).hint({ISBN : 1}).explain() //确认是否使用了强制指定的索引
 > db.media.find().min({ Released : 1995 }).max({ Released : 2005 }).hit({ Released : 1 }) //使用查询匹配   平时还是建议使用$gt，$lt因为它们不要求有索引
 ```
+索引不能被以下的查询使用：
+>正则表达式及非操作符，如 $nin, $not, 等。<br/>
+>算术运算符，如 $mod, 等。<br/>
+>$where 子句
+
+所以，检测你的语句是否使用索引是一个好的习惯，可以用explain来查看。
 
 ### 6、启用文本搜索
 启动文本搜索有三种方式：
@@ -453,4 +464,156 @@ db.articles.find(
 [更详细的文本搜索介绍](https://docs.mongodb.com/manual/reference/operator/query/text/)
 [文本搜索支持的语言](https://docs.mongodb.com/manual/reference/text-search-languages/#text-search-languages)
 
+#### 7、MongoDB Map Reduce
+难点
+```Javascript
+>db.posts.mapReduce(
+   function() { emit(this.user_name,1); },
+   function(key, values) {return Array.sum(values)},
+      {
+         query:{status:"active"},
+         out:"post_total"
+      }
+)
+```
+#### 8、MongoDB 正则表达式
+```Javascript
+>db.posts.find({post_text:{$regex:"w3"}});
+>db.posts.find({post_text:/w3/}); //同上
+>db.posts.find({post_text:{$regex:"w3C",$options:"$i"}});//不区分大小写
+>db.posts.find({post_text:eval("/" + key +"/i")}); //使用变量必须使用eval
+```
+
+#### 9、MongoDB GridFS
+GridFS 用于存储和恢复那些超过16M（BSON文件限制）的文件(如：图片、音频、视频等)。
+```Javascript
+>mongofiles.exe -d gridfs put song.mp3 //插入p3文件
+>db.fs.chunks.find({files_id:ObjectId('534a811bf8b4aa4d33fdf94d')}) //以文件ID查文件
+```
+
+#### 10、MongoDB 固定集合（Capped Collections）
+```Javascript
+//我们通过createCollection来创建一个固定集合，且capped选项设置为true：
+>db.createCollection("cappedLogCollection",{capped:true,size:10000})
+
+//还可以指定文档个数,加上max:1000属性：
+>db.createCollection("cappedLogCollection",{capped:true,size:10000,max:1000})
+
+//判断集合是否为固定集合:
+>db.cappedLogCollection.isCapped()
+
+//如果需要将已存在的集合转换为固定集合可以使用以下命令：
+>db.runCommand({"convertToCapped":"posts",size:10000})
+
+//固定集合文档按照插入顺序储存的,默认情况下查询就是按照插入顺序返回的,也可以使用$natural调整返回顺序。
+>db.cappedLogCollection.find().sort({$natural:-1})
+```
+固定集合的功能特点：
+>可以插入及更新，但更新不能超出collection的大小，否则更新失败，不允许删除，但是可以调用drop()删除集合中的所有行。但是drop后需要显式地重建集合。用于储存日志信息或缓存一些少量的文档。
+
+#### 11、MongoDB 自动增长
+MongoDB 没有像 SQL 一样有自动增长的功能， MongoDB 的 _id 是系统自动生成的12字节唯一标识。
+但在某些情况下，我们可能需要实现 ObjectId 自动增长功能。
+前面我们知道$inc功能，所以我们可以牺牲一个集合来换起自动增长功能。
+```Javascript
+>db.createCollection("counters");//创建一个永远只有一条记录的集合
+>db.counters.insert({_id:"productid",sequence_value:0});//插入初始数据
+>function getNextSequenceValue(sequenceName){
+   var sequenceDocument = db.counters.findAndModify(
+      {
+         query:{_id: sequenceName },
+         update: {$inc:{sequence_value:1}},
+         new:true
+      });
+   return sequenceDocument.sequence_value;
+} //创建一个函数，每次更新一下counters集合并返回自动增长的记录数（假如删除new:会怎么样？）
+>db.products.insert({
+   "_id":getNextSequenceValue("productid"),
+   "product_name":"Apple iPhone",
+   "category":"mobiles"}); //利用此函数插入需要自动增长_id的集合
+```
+
+### MongoDB数据备份
+
+在Mongodb中我们使用mongodump命令来备份MongoDB数据。该命令可以导出所有数据到指定目录中。
+mongodump命令可以通过参数指定导出的数据量级转存的服务器。
+
+#### 语法
+mongodump命令脚本语法如下：
+```Javascript
+>mongodump -h dbhost -d dbname -o dbdirectory
+```
+* -h \[--host]：
+MongDB所在服务器地址，例如：127.0.0.1，当然也可以指定端口号：127.0.0.1:27017。可单独使用--port指定端口号
+* -d \[--db]：
+需要备份的数据库实例，例如：test
+* -o \[--out]：
+备份的数据存放位置，例如：c:\data\dump，当然该目录需要提前建立，在备份完成后，系统自动在dump目录下建立一个test目录，这个目录里面存放该数据库实例的备份数据。
+在本地使用27017启动你的mongod服务。以管理员身份证打开命令提示符窗口，进入MongoDB安装目录的bin目录输入命令：
+```Javascript
+>mongodump -h 127.0.0.1:27017 -d test -o c:\data\dump ; //备份本机的test数据在c:\data\dump下
+>mongodump -o c:\data\dump ; //备份本机的所有数据在c:\data\dump下
+>mongodump //不带任何参数表示备份所有数据库在本目录下（效果见下图）
+>mongodump -c media -d test; //备份数据库test下的media集合到本目录下
+>mongodump --help; //查看帮助
+```
+![image](https://github.com/scscms/MongoDB/raw/master/images/mongodump.png)<br/>
+
+### MongoDB数据恢复
+
+mongodb使用 mongorerstore 命令来恢复备份的数据。
+#### 语法
+mongorestore命令脚本语法如下：
+```Javascript
+>mongorestore -h dbhost -d dbname --directoryperdb dbdirectory
+```
+* -h：
+MongoDB所在服务器地址
+* -d：
+需要恢复的数据库实例，例如：test，当然这个名称也可以和备份时候的不一样，比如test2
+* --directoryperdb：
+备份数据所在位置，例如：c:\data\dump\test，这里为什么要多加一个test，而不是备份时候的dump，读者自己查看提示吧！
+* --drop：
+恢复的时候，先删除当前数据，然后恢复备份的数据。就是说，恢复后，备份后添加修改的数据都会被删除，慎用哦！
+在本地使用27017启动你的mongod服务。以管理员身份证打开命令提示符窗口，进入MongoDB安装目录的bin目录输入命令：
+```Javascript
+>mongorestore --drop ; //针对mongodump直接备份的，删除后还原数据
+>mongorestore ; //同上。原理上数据会累加，但在2.6.7版本下并没累加
+>mongorestore -d test --directoryperdb c:\data\dump\test //还原test数据库
+>mongorestore --collection media --db test dump/test/media.bson //还原数据库test下的media集合
+>mongorestore --host www.example.net --port 37017 --username user --password pass /opt/backup/mongodump-2011-10-24 //带用户验证恢复远程数据
+>mongorestore --help; //查看帮助
+```
+
+### 备份大数据
+使用以下命令使MongoDB进入fsync和lock状态
+```Javascript
+> use admin
+> db.fsyncLock()
+{
+    "info" : "now locked against writes",
+    "ok" : 1
+}
+```
+使用以下命令检查当前状态
+```Javascript
+> use admin
+> db.currentOp()
+{
+    "inprog":[],
+    "fsyncLock" : 1
+}
+```
+状态"fsyncLock" : 1表示fsync进程（负责写入磁盘进程）正在阻塞写入操作，此时可创建快照和备份。一旦完成备份需要释放锁：
+```Javascript
+> db.fsyncUnlock()
+{
+    "info" : "unlock requested",
+    "ok" : 1
+}
+> db.currentOp()
+{
+    "inprog":[]
+}
+```
 http://www.runoob.com/mongodb/mongodb-limit-skip.html
